@@ -12,14 +12,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['login'])) {
     $email = $_POST['email'];
     $password = $_POST['password'];
 
-    $sql = "SELECT id, password FROM users WHERE email = ?";
+    $sql = "SELECT id, username, profile_picture, password FROM users WHERE email = ?";
     if ($stmt = $conn->prepare($sql)) {
         $stmt->bind_param("s", $email);
         $stmt->execute();
-        $stmt->bind_result($user_id, $hashed_password);
+        $stmt->bind_result($user_id, $username, $profile_picture, $hashed_password);
         if ($stmt->fetch() && password_verify($password, $hashed_password)) {
+            // Store user info in session
             $_SESSION['user_id'] = $user_id;
+            $_SESSION['username'] = $username;
+            $_SESSION['profile_picture'] = $profile_picture;
             $login_feedback = "<p class='success'>Login successful!</p>";
+            header("Location: index.php");
+            exit();
         } else {
             $login_feedback = "<p class='error'>Invalid email or password.</p>";
         }
@@ -27,21 +32,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['login'])) {
     }
 }
 
-// Handle Signup Form Submission
+// Handle Signup Form Submission with Password Confirmation
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['signup'])) {
     $username = $_POST['username'];
     $email = $_POST['email'];
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $password = $_POST['password'];
+    $confirm_password = $_POST['confirm_password'];
 
-    $sql = "INSERT INTO users (username, email, password) VALUES (?, ?, ?)";
-    if ($stmt = $conn->prepare($sql)) {
-        $stmt->bind_param("sss", $username, $email, $password);
-        if ($stmt->execute()) {
-            $signup_feedback = "<p class='success'>Signup successful! You can now log in.</p>";
-        } else {
-            $signup_feedback = "<p class='error'>Signup failed: " . htmlspecialchars($stmt->error) . "</p>";
+    // Check if passwords match
+    if ($password !== $confirm_password) {
+        $signup_feedback = "<p class='error'>Passwords do not match.</p>";
+    } else {
+        // Hash the password and proceed with signup
+        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+
+        $sql = "INSERT INTO users (username, email, password) VALUES (?, ?, ?)";
+        if ($stmt = $conn->prepare($sql)) {
+            $stmt->bind_param("sss", $username, $email, $hashed_password);
+            if ($stmt->execute()) {
+                $signup_feedback = "<p class='success'>Signup successful! You can now log in.</p>";
+            } else {
+                $signup_feedback = "<p class='error'>Signup failed: " . htmlspecialchars($stmt->error) . "</p>";
+            }
+            $stmt->close();
         }
-        $stmt->close();
     }
 }
 
@@ -63,13 +77,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['contact'])) {
     } else {
         $contact_feedback = "<p class='error'>You must be logged in to submit a message.</p>";
     }
-}
-
-// Query the database for student portfolios
-$portfolio_result = null;
-if (isset($conn)) {
-    $sql = "SELECT name, course, year, project_link FROM students";
-    $portfolio_result = $conn->query($sql);
 }
 ?>
 
@@ -111,6 +118,35 @@ if (isset($conn)) {
         .form-switcher button:focus {
             outline: none;
         }
+
+        /* Profile image at the top-right corner */
+        nav {
+            float: right;
+        }
+
+        .profile-pic {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        /* Reduced footer height and restored previous background color */
+        footer {
+            padding: 10px 0; /* Adjusted padding */
+            background-color: #333; /* Example color, replace with previous color */
+            color: #fff; /* Ensures text is readable on dark background */
+            text-align: center;
+            font-size: 14px; /* Optional: Adjust font size for a more compact look */
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
     </style>
     <script>
         function showForm(formName) {
@@ -125,31 +161,19 @@ if (isset($conn)) {
         <h1>MMU Students Portfolio</h1>
         <?php if (isset($_SESSION['user_id'])): ?>
             <nav>
+                <a href="profile.php" class="profile-button">
+                    <?php if (!empty($_SESSION['profile_picture'])): ?>
+                        <img src="uploads/<?php echo htmlspecialchars($_SESSION['profile_picture']); ?>" alt="Profile Picture" class="profile-pic">
+                    <?php else: ?>
+                        <i class="fas fa-user-circle" style="font-size: 40px;"></i>
+                    <?php endif; ?>
+                </a>
                 <a href="logout.php" class="logout-button">Logout</a>
             </nav>
         <?php endif; ?>
     </header>
     
     <main>
-        <!-- Portfolio Section -->
-        <div class="portfolio">
-            <h2>Student Portfolios</h2>
-            <?php
-            if ($portfolio_result && $portfolio_result->num_rows > 0) {
-                while ($row = $portfolio_result->fetch_assoc()) {
-                    echo "<div class='portfolio-item'>";
-                    echo "<h2>" . htmlspecialchars($row["name"]) . "</h2>";
-                    echo "<p>Course: " . htmlspecialchars($row["course"]) . "</p>";
-                    echo "<p>Year: " . htmlspecialchars($row["year"]) . "</p>";
-                    echo "<a href='" . htmlspecialchars($row["project_link"]) . "' target='_blank'>View Project</a>";
-                    echo "</div>";
-                }
-            } else {
-                echo "<p>No portfolios found.</p>";
-            }
-            ?>
-        </div>
-
         <!-- Login and Signup Forms -->
         <?php if (!isset($_SESSION['user_id'])): ?>
             <div class="form-switcher">
@@ -178,6 +202,8 @@ if (isset($conn)) {
                     <input type="email" name="email" required><br>
                     <label for="password">Password:</label>
                     <input type="password" name="password" required><br>
+                    <label for="confirm_password">Confirm Password:</label>
+                    <input type="password" name="confirm_password" required><br>
                     <input type="submit" name="signup" value="Signup">
                 </form>
             </div>
