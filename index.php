@@ -21,7 +21,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['login'])) {
             // Store user info in session
             $_SESSION['user_id'] = $user_id;
             $_SESSION['username'] = $username;
-            $_SESSION['profile_picture'] = $profile_picture;
+            $_SESSION['profile_picture'] = $profile_picture ? $profile_picture : 'default.png'; // Set default if profile_picture is empty
             $login_feedback = "<p class='success'>Login successful!</p>";
             header("Location: index.php");
             exit();
@@ -89,7 +89,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['contact'])) {
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* Additional CSS for form styling */
+        /* Form switcher for toggling between login and signup */
         .form-switcher {
             text-align: center;
             margin: 20px 0;
@@ -111,15 +111,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['contact'])) {
             background-color: #0056b3;
         }
 
-        .form-switcher button:active {
-            background-color: #004494;
-        }
-
-        .form-switcher button:focus {
-            outline: none;
-        }
-
-        /* Profile image at the top-right corner */
+        /* Profile image styling */
         nav {
             float: right;
         }
@@ -131,21 +123,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['contact'])) {
             object-fit: cover;
         }
 
-        /* Reduced footer height and restored previous background color */
-        footer {
-            padding: 10px 0; /* Adjusted padding */
-            background-color: #333; /* Example color, replace with previous color */
-            color: #fff; /* Ensures text is readable on dark background */
-            text-align: center;
-            font-size: 14px; /* Optional: Adjust font size for a more compact look */
-        }
-
+        /* Feedback messages */
         .success {
             color: green;
+            font-weight: bold;
         }
 
         .error {
             color: red;
+            font-weight: bold;
+        }
+
+        /* Reduced footer height */
+        footer {
+            padding: 10px 0;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            font-size: 14px;
         }
     </style>
     <script>
